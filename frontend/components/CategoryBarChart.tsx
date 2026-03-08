@@ -13,26 +13,20 @@ import {
 } from "recharts";
 import { StatementSummary } from "../types/transaction";
 import { formatCurrency } from "../lib/format";
+import { buildCategoryColorMap, getCategoryColor } from "../lib/categoryColors";
 
 type Props = {
   summary: StatementSummary;
-};
-
-const CATEGORY_COLORS: Record<string, string> = {
-  groceries: "#38bdf8",
-  restaurants: "#34d399",
-  subscriptions: "#f59e0b",
-  transportation: "#f97316",
-  shopping: "#60a5fa",
-  payments: "#10b981",
-  income: "#a78bfa",
-  other: "#f87171",
 };
 
 export default function CategoryBarChart({ summary }: Props) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const data = useMemo(() => summary.category_totals, [summary.category_totals]);
+  const categoryColorMap = useMemo(
+    () => buildCategoryColorMap(data.map((item) => item.category)),
+    [data]
+  );
 
   return (
     <div className="rounded-2xl border border-blue-300/20 bg-gradient-to-br from-slate-900/85 to-blue-950/45 p-4 shadow-[0_14px_35px_rgba(8,29,77,0.35)]">
@@ -73,7 +67,7 @@ export default function CategoryBarChart({ summary }: Props) {
               onMouseLeave={() => setActiveIndex(null)}
             >
               {data.map((entry, index) => {
-                const baseColor = CATEGORY_COLORS[entry.category] ?? "#60a5fa";
+                const baseColor = getCategoryColor(categoryColorMap, entry.category);
                 const isActive = activeIndex === index;
 
                 return (

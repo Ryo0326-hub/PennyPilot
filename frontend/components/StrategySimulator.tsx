@@ -36,7 +36,7 @@ function SliderRow({
 }: SliderRowProps) {
   return (
     <div className="rounded-2xl border border-white/15 bg-white/[0.03] p-4 shadow-sm">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <label className="text-sm font-medium text-slate-100">{label}</label>
         <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-sm font-semibold text-cyan-100">
           {value}%
@@ -100,6 +100,51 @@ function StrategyAnalysisLoading() {
   );
 }
 
+function toReadableStrategyMarkdown(markdown: string) {
+  const lines = markdown.split(/\r?\n/);
+  const output: string[] = [];
+
+  const flushMetricStreak = (streak: string[]) => {
+    if (streak.length < 2) {
+      output.push(...streak);
+      return;
+    }
+
+    for (const line of streak) {
+      const match = line.match(/^(\*\*)?([^:*]+)(\*\*)?:\s*(.+)$/);
+      if (!match) {
+        output.push(line);
+        continue;
+      }
+      const label = match[2].trim();
+      const value = match[4].trim();
+      output.push(`- **${label}:** ${value}`);
+    }
+  };
+
+  const isMetricLine = (line: string) =>
+    /^(\*\*)?[^:*][^:]{1,40}(\*\*)?:\s+.+$/.test(line.trim());
+
+  let streak: string[] = [];
+  for (const line of lines) {
+    if (isMetricLine(line)) {
+      streak.push(line.trim());
+      continue;
+    }
+    if (streak.length > 0) {
+      flushMetricStreak(streak);
+      streak = [];
+    }
+    output.push(line);
+  }
+
+  if (streak.length > 0) {
+    flushMetricStreak(streak);
+  }
+
+  return output.join("\n");
+}
+
 function findRecordedTotal(categoryTotals: CategoryTotal[], aliases: string[]) {
   const normalizedAliases = aliases.map((alias) => alias.toLowerCase());
   const found = categoryTotals.find((item) =>
@@ -155,9 +200,9 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
   };
 
   return (
-    <div className="space-y-6 rounded-3xl border border-violet-300/20 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-violet-950/50 p-6 shadow-[0_16px_45px_rgba(26,18,63,0.35)]">
+    <div className="space-y-6 rounded-3xl border border-violet-300/20 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-violet-950/50 p-4 shadow-[0_16px_45px_rgba(26,18,63,0.35)] sm:p-6">
       <div className="space-y-1">
-        <h3 className="text-xl font-semibold text-white">Strategy Simulator</h3>
+        <h3 className="text-lg font-semibold text-white sm:text-xl">Strategy Simulator</h3>
         <p className="text-sm text-slate-300">
           Test how reducing discretionary spending could affect your monthly and annual savings.
         </p>
@@ -221,16 +266,16 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
         />
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
         <button
           onClick={runSimulation}
           disabled={loading}
-          className="rounded-2xl bg-gradient-to-r from-cyan-300 via-blue-300 to-violet-300 px-5 py-3 font-semibold text-slate-900 transition hover:brightness-110 disabled:opacity-50"
+          className="w-full rounded-2xl bg-gradient-to-r from-cyan-300 via-blue-300 to-violet-300 px-5 py-3 font-semibold text-slate-900 transition hover:brightness-110 disabled:opacity-50 sm:w-auto"
         >
           {loading ? "Running..." : "Run Simulation"}
         </button>
 
-        <div className="text-sm text-slate-400">
+        <div className="text-sm text-slate-400 sm:max-w-md">
           Adjust the sliders, then generate a savings scenario.
         </div>
       </div>
@@ -308,12 +353,12 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
           {aiExplanation && !loading && (
             <div className="rounded-2xl border border-violet-300/20 bg-violet-500/5 p-5 shadow-sm">
               <h4 className="text-base font-semibold text-violet-100">AI Strategy Analysis</h4>
-              <div className="prose prose-invert mt-4 max-w-none prose-headings:scroll-mt-24 prose-headings:font-semibold prose-headings:tracking-tight prose-h3:mb-3 prose-h3:mt-6 prose-h3:text-lg prose-p:leading-7 prose-p:text-gray-200 prose-strong:font-bold prose-strong:text-white prose-ul:my-4 prose-ul:text-gray-200 prose-li:my-1">
+              <div className="prose prose-invert mt-4 max-w-4xl prose-headings:scroll-mt-24 prose-headings:font-semibold prose-headings:tracking-tight prose-h3:mb-3 prose-h3:mt-6 prose-h3:text-lg prose-p:my-4 prose-p:leading-8 prose-p:text-gray-200 prose-strong:font-bold prose-strong:text-white prose-ul:my-4 prose-ul:text-gray-200 prose-li:my-1">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
                     h3: ({ children }) => (
-                      <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                      <div className="mt-6 rounded-xl border border-violet-300/20 bg-violet-400/10 px-4 py-3">
                         <h3 className="m-0 text-base font-bold text-white">{children}</h3>
                       </div>
                     ),
@@ -326,7 +371,7 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
                       <p className="my-3 text-sm leading-7 text-gray-200">{children}</p>
                     ),
                     ul: ({ children }) => (
-                      <ul className="my-3 list-disc space-y-1.5 pl-6 text-sm leading-7 text-gray-200">
+                      <ul className="my-4 list-none space-y-2 pl-0 text-sm leading-7 text-gray-200">
                         {children}
                       </ul>
                     ),
@@ -335,11 +380,15 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
                         {children}
                       </ol>
                     ),
-                    li: ({ children }) => <li className="marker:text-gray-400">{children}</li>,
+                    li: ({ children }) => (
+                      <li className="rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2">
+                        {children}
+                      </li>
+                    ),
                     strong: ({ children }) => (
                       <strong className="font-bold text-white">{children}</strong>
                     ),
-                    hr: () => <hr className="my-5 border-white/10" />,
+                    hr: () => null,
                     blockquote: ({ children }) => (
                       <blockquote className="my-4 rounded-r-xl border-l-4 border-emerald-400/70 bg-emerald-400/5 px-4 py-3 text-sm text-gray-200">
                         {children}
@@ -347,7 +396,7 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
                     ),
                   }}
                 >
-                  {aiExplanation}
+                  {toReadableStrategyMarkdown(aiExplanation)}
                 </ReactMarkdown>
               </div>
             </div>

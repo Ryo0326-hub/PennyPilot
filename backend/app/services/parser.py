@@ -73,8 +73,40 @@ MONTH_TO_NUM = {
     "DEC": 12,
 }
 
+MONTH_ALIASES = {
+    "JAN": 1,
+    "JANUARY": 1,
+    "FEB": 2,
+    "FEBRUARY": 2,
+    "MAR": 3,
+    "MARCH": 3,
+    "APR": 4,
+    "APRIL": 4,
+    "MAY": 5,
+    "JUN": 6,
+    "JUNE": 6,
+    "JUL": 7,
+    "JULY": 7,
+    "AUG": 8,
+    "AUGUST": 8,
+    "SEP": 9,
+    "SEPT": 9,
+    "SEPTEMBER": 9,
+    "OCT": 10,
+    "OCTOBER": 10,
+    "NOV": 11,
+    "NOVEMBER": 11,
+    "DEC": 12,
+    "DECEMBER": 12,
+}
+
 STATEMENT_RANGE_RE = re.compile(
     r"STATEMENT\s+FROM\s+([A-Z]{3})\s+\d{1,2}\s+TO\s+([A-Z]{3})\s+\d{1,2},\s+(\d{4})",
+    re.IGNORECASE,
+)
+STATEMENT_RANGE_RE_GENERIC = re.compile(
+    r"(?:STATEMENT(?:\s+PERIOD)?\s*(?:FROM)?\s*)"
+    r"([A-Z]{3,9})\s+\d{1,2}\s+TO\s+([A-Z]{3,9})\s+\d{1,2},\s+(\d{4})",
     re.IGNORECASE,
 )
 
@@ -86,10 +118,22 @@ TRANSACTION_LINE_RE = re.compile(
 )
 
 TRANSACTION_START_RE = re.compile(
-    r"^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{1,2})\s+"
-    r"(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{1,2})\s+(.+)$",
+    r"^([A-Z]{3,9})\s+(\d{1,2})\s+([A-Z]{3,9})\s+(\d{1,2})\s+(.+)$",
     re.IGNORECASE,
 )
+AMOUNT_END_RE = re.compile(r"(-?\$?\d[\d,]*\.\d{2})$")
+
+KNOWN_SPEND_CATEGORIES = [
+    "Health and Education",
+    "Transportation",
+    "Personal and Household Expenses",
+    "Professional and Financial Services",
+    "Retail and Grocery",
+    "Hotel, Entertainment and Recreation",
+    "Restaurants",
+    "Travel",
+    "Groceries",
+]
 
 
 def _clean_string(value) -> str:
@@ -118,6 +162,16 @@ def _clean_amount(value) -> float:
         text = "-" + text[1:-1]
 
     return float(text)
+
+
+def _is_payment_like(description: str) -> bool:
+    lowered = description.lower()
+    return (
+        "payment" in lowered
+        and "thank you" in lowered
+        or "paiement" in lowered
+        or "payment received" in lowered
+    )
 
 
 def _normalize_direction(amount: float) -> str:
@@ -152,6 +206,8 @@ def _infer_statement_years(statement_text: str) -> tuple[int, int, int, int]:
     """
     match = STATEMENT_RANGE_RE.search(statement_text)
     if not match:
+        match = STATEMENT_RANGE_RE_GENERIC.search(statement_text)
+    if not match:
         current_year = datetime.now().year
         return 1, 12, current_year, current_year
 
@@ -159,8 +215,8 @@ def _infer_statement_years(statement_text: str) -> tuple[int, int, int, int]:
     end_month_code = match.group(2).upper()
     end_year = int(match.group(3))
 
-    start_month = MONTH_TO_NUM.get(start_month_code, 1)
-    end_month = MONTH_TO_NUM.get(end_month_code, 12)
+    start_month = MONTH_ALIASES.get(start_month_code, 1)
+    end_month = MONTH_ALIASES.get(end_month_code, 12)
 
     start_year = end_year if start_month <= end_month else end_year - 1
     return start_month, end_month, start_year, end_year
@@ -323,18 +379,61 @@ def _parse_pdf_from_text_pages(page_texts: list[str]):
     transactions = []
     for text in page_texts:
         pending: dict | None = None
+        section = ""
         for raw_line in text.splitlines():
             line = _normalize_spaces(raw_line)
             if not line:
                 continue
 
+            upper_line = line.upper()
+            if "YOUR PAYMENTS" in upper_line:
+                section = "payments"
+            elif "YOUR NEW CHARGES" in upper_line or "TRANSACTIONS" in upper_line:
+                section = "charges"
+
             start_match = TRANSACTION_START_RE.match(line)
             if start_match:
+                month_1 = start_match.group(1).upper()
+                month_2 = start_match.group(3).upper()
+                if month_1 not in MONTH_ALIASES or month_2 not in MONTH_ALIASES:
+                    continue
                 pending = {
-                    "month": start_match.group(1).upper(),
+                    "month": month_1,
                     "day": int(start_match.group(2)),
                     "description": start_match.group(5).strip(),
+                    "section": section,
                 }
+
+                amount_inline = AMOUNT_END_RE.search(pending["description"])
+                if amount_inline:
+                    amount_text = amount_inline.group(1)
+                    description = pending["description"][: amount_inline.start()].strip()
+                    for category in KNOWN_SPEND_CATEGORIES:
+                        if description.endswith(category):
+                            description = description[: -len(category)].strip()
+                            break
+                    month_num = MONTH_ALIASES[pending["month"]]
+                    year = _year_for_month(
+                        month_num=month_num,
+                        start_month=start_month,
+                        end_month=end_month,
+                        start_year=start_year,
+                        end_year=end_year,
+                    )
+                    iso_date = f"{year:04d}-{month_num:02d}-{pending['day']:02d}"
+                    amount = _clean_amount(amount_text)
+                    if pending["section"] == "payments" or _is_payment_like(description):
+                        amount = -abs(amount)
+                    transactions.append(
+                        {
+                            "date": iso_date,
+                            "merchant": _extract_merchant(description),
+                            "description": description,
+                            "amount": amount,
+                            "direction": _normalize_direction(amount),
+                        }
+                    )
+                    pending = None
                 continue
 
             if pending is None:
@@ -345,9 +444,9 @@ def _parse_pdf_from_text_pages(page_texts: list[str]):
             if line.upper().startswith("FOREIGN CURRENCY"):
                 continue
 
-            amount_match = re.fullmatch(r"-?\$[\d,]+\.\d{2}", line)
+            amount_match = re.fullmatch(r"-?\$?\d[\d,]*\.\d{2}", line)
             if amount_match:
-                month_num = MONTH_TO_NUM[pending["month"]]
+                month_num = MONTH_ALIASES[pending["month"]]
                 year = _year_for_month(
                     month_num=month_num,
                     start_month=start_month,
@@ -356,8 +455,14 @@ def _parse_pdf_from_text_pages(page_texts: list[str]):
                     end_year=end_year,
                 )
                 iso_date = f"{year:04d}-{month_num:02d}-{pending['day']:02d}"
-                amount = _clean_amount(line)
+                amount = _clean_amount(amount_match.group(0))
                 description = _normalize_spaces(pending["description"])
+                for category in KNOWN_SPEND_CATEGORIES:
+                    if description.endswith(category):
+                        description = description[: -len(category)].strip()
+                        break
+                if pending["section"] == "payments" or _is_payment_like(description):
+                    amount = -abs(amount)
                 transactions.append(
                     {
                         "date": iso_date,
@@ -381,6 +486,10 @@ def parse_transactions_pdf(file_bytes: bytes):
     transactions = []
     if pdfplumber is not None:
         transactions = _parse_pdf_with_pdfplumber(file_bytes)
+        if not transactions:
+            with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+                page_texts = [page.extract_text() or "" for page in pdf.pages]
+            transactions = _parse_pdf_from_text_pages(page_texts)
     elif PdfReader is not None:
         reader = PdfReader(io.BytesIO(file_bytes))
         page_texts = [page.extract_text() or "" for page in reader.pages]

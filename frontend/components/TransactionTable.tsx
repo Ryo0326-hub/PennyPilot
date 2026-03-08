@@ -16,15 +16,15 @@ export default function TransactionTable({ transactions }: Props) {
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-white/15 bg-slate-900/75 shadow-[0_14px_35px_rgba(0,0,0,0.35)]">
-      <table className="min-w-full text-sm text-slate-100">
+      <table className="min-w-[760px] text-sm text-slate-100 sm:min-w-full">
         <thead className="border-b border-white/15 bg-gradient-to-r from-slate-800 to-slate-700 text-slate-100">
           <tr>
-            <th className="px-4 py-3 text-left font-semibold">Date</th>
-            <th className="px-4 py-3 text-left font-semibold">Merchant</th>
-            <th className="px-4 py-3 text-left font-semibold">Description</th>
-            <th className="px-4 py-3 text-left font-semibold">Amount</th>
-            <th className="px-4 py-3 text-left font-semibold">Direction</th>
-            <th className="px-4 py-3 text-left font-semibold">Category</th>
+            <th className="px-3 py-2.5 text-left font-semibold sm:px-4 sm:py-3">Date</th>
+            <th className="px-3 py-2.5 text-left font-semibold sm:px-4 sm:py-3">Merchant</th>
+            <th className="px-3 py-2.5 text-left font-semibold sm:px-4 sm:py-3">Description</th>
+            <th className="px-3 py-2.5 text-left font-semibold sm:px-4 sm:py-3">Amount</th>
+            <th className="px-3 py-2.5 text-left font-semibold sm:px-4 sm:py-3">Direction</th>
+            <th className="px-3 py-2.5 text-left font-semibold sm:px-4 sm:py-3">Category</th>
           </tr>
         </thead>
         <tbody>
@@ -33,12 +33,12 @@ export default function TransactionTable({ transactions }: Props) {
               key={`${tx.date}-${tx.description}-${index}`}
               className="border-b border-white/10 transition-colors odd:bg-white/[0.02] hover:bg-cyan-300/10"
             >
-              <td className="px-4 py-3 text-slate-200">{tx.date}</td>
-              <td className="px-4 py-3 font-medium text-white">{tx.merchant}</td>
-              <td className="px-4 py-3 text-slate-200">{tx.description}</td>
-              <td className="px-4 py-3 font-semibold text-cyan-100">{formatCurrency(tx.amount)}</td>
-              <td className="px-4 py-3 text-slate-200">{tx.direction}</td>
-              <td className="px-4 py-3 capitalize text-slate-100">{tx.category}</td>
+              <td className="px-3 py-2.5 text-slate-200 sm:px-4 sm:py-3">{tx.date}</td>
+              <td className="px-3 py-2.5 font-medium text-white sm:px-4 sm:py-3">{tx.merchant}</td>
+              <td className="px-3 py-2.5 text-slate-200 sm:px-4 sm:py-3">{tx.description}</td>
+              <td className="px-3 py-2.5 font-semibold text-cyan-100 sm:px-4 sm:py-3">{formatCurrency(tx.amount)}</td>
+              <td className="px-3 py-2.5 text-slate-200 sm:px-4 sm:py-3">{tx.direction}</td>
+              <td className="px-3 py-2.5 capitalize text-slate-100 sm:px-4 sm:py-3">{tx.category}</td>
             </tr>
           ))}
         </tbody>

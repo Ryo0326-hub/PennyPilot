@@ -66,15 +66,60 @@ function parseSections(markdown: string): InsightSection[] {
   return sections.filter((section) => section.body.length > 0);
 }
 
+function toReadableMarkdown(markdown: string) {
+  const lines = markdown.split(/\r?\n/);
+  const output: string[] = [];
+
+  const flushMetricStreak = (streak: string[]) => {
+    if (streak.length < 2) {
+      output.push(...streak);
+      return;
+    }
+
+    for (const line of streak) {
+      const match = line.match(/^(\*\*)?([^:*]+)(\*\*)?:\s*(.+)$/);
+      if (!match) {
+        output.push(line);
+        continue;
+      }
+      const label = match[2].trim();
+      const value = match[4].trim();
+      output.push(`- **${label}:** ${value}`);
+    }
+  };
+
+  const isMetricLine = (line: string) =>
+    /^(\*\*)?[^:*][^:]{1,40}(\*\*)?:\s+.+$/.test(line.trim());
+
+  let streak: string[] = [];
+  for (const line of lines) {
+    if (isMetricLine(line)) {
+      streak.push(line.trim());
+      continue;
+    }
+    if (streak.length > 0) {
+      flushMetricStreak(streak);
+      streak = [];
+    }
+    output.push(line);
+  }
+
+  if (streak.length > 0) {
+    flushMetricStreak(streak);
+  }
+
+  return output.join("\n");
+}
+
 export default function AIInsightsCard({ insights }: Props) {
   const sections = parseSections(insights);
 
   return (
     <div className="overflow-hidden rounded-3xl border border-cyan-300/20 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-cyan-950/60 shadow-[0_16px_48px_rgba(6,26,50,0.35)]">
-      <div className="border-b border-white/15 bg-white/[0.03] px-6 py-5">
-        <div className="flex items-start justify-between gap-4">
+      <div className="border-b border-white/15 bg-white/[0.03] px-4 py-4 sm:px-6 sm:py-5">
+        <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
           <div>
-            <h3 className="text-xl font-semibold tracking-tight text-white">
+            <h3 className="text-lg font-semibold tracking-tight text-white sm:text-xl">
               AI CFO Insights
             </h3>
             <p className="mt-1 text-sm text-slate-300">
@@ -88,7 +133,7 @@ export default function AIInsightsCard({ insights }: Props) {
         </div>
       </div>
 
-      <div className="px-6 py-6">
+      <div className="px-4 py-4 sm:px-6 sm:py-6">
         {sections.length > 0 ? (
           <div className="space-y-5">
             {sections.map((section) => {
@@ -101,7 +146,7 @@ export default function AIInsightsCard({ insights }: Props) {
               return (
                 <section
                   key={section.title}
-                  className={`rounded-2xl border px-5 py-4 ${style.container}`}
+                  className={`rounded-2xl border px-4 py-4 sm:px-5 ${style.container}`}
                 >
                   <div className="mb-3">
                     <h4 className={`text-base font-bold ${style.heading}`}>
@@ -109,12 +154,22 @@ export default function AIInsightsCard({ insights }: Props) {
                     </h4>
                   </div>
 
-                  <div className="prose prose-invert max-w-none prose-p:my-3 prose-p:text-[15px] prose-p:leading-7 prose-p:text-gray-200 prose-ul:my-3 prose-ul:text-[15px] prose-ul:leading-7 prose-ul:text-gray-200 prose-ol:my-3 prose-ol:text-[15px] prose-ol:leading-7 prose-ol:text-gray-200 prose-li:my-1 prose-strong:font-bold prose-strong:text-white prose-hr:border-white/15">
+                  <div className="prose prose-invert max-w-4xl prose-p:my-4 prose-p:text-[15px] prose-p:leading-8 prose-p:text-gray-200 prose-ul:my-4 prose-ul:pl-0 prose-ul:text-[15px] prose-ul:leading-7 prose-ul:text-gray-200 prose-ol:my-4 prose-ol:text-[15px] prose-ol:leading-7 prose-ol:text-gray-200 prose-li:my-1 prose-strong:font-bold prose-strong:text-white prose-hr:border-white/15">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
-                      components={{ hr: () => null }}
+                      components={{
+                        hr: () => null,
+                        ul: ({ children }) => (
+                          <ul className="my-4 list-none space-y-2 pl-0">{children}</ul>
+                        ),
+                        li: ({ children }) => (
+                          <li className="rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2 text-sm leading-7">
+                            {children}
+                          </li>
+                        ),
+                      }}
                     >
-                      {section.body}
+                      {toReadableMarkdown(section.body)}
                     </ReactMarkdown>
                   </div>
                 </section>

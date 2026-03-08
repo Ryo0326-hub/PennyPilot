@@ -50,8 +50,8 @@ export default function UploadStatementForm({ onParsed }: Props) {
   };
 
   return (
-    <div className="rounded-[22px] border border-white/10 bg-gradient-to-br from-slate-900/90 via-slate-900/75 to-blue-950/60 p-6 shadow-[0_20px_50px_rgba(10,18,40,0.45)]">
-      <h2 className="text-xl font-bold text-white">Upload Bank Statement</h2>
+    <div className="rounded-[22px] border border-white/10 bg-gradient-to-br from-slate-900/90 via-slate-900/75 to-blue-950/60 p-4 shadow-[0_20px_50px_rgba(10,18,40,0.45)] sm:p-6">
+      <h2 className="text-lg font-bold text-white sm:text-xl">Upload Bank Statement</h2>
       <p className="mt-1 text-sm text-slate-300">
         Upload a PDF statement and generate a full financial intelligence report.
       </p>
@@ -71,12 +71,12 @@ export default function UploadStatementForm({ onParsed }: Props) {
         <button
           onClick={handleUpload}
           disabled={loading}
-          className="rounded-xl bg-gradient-to-r from-cyan-300 via-blue-300 to-emerald-300 px-4 py-2.5 text-sm font-bold text-slate-900 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-xl bg-gradient-to-r from-cyan-300 via-blue-300 to-emerald-300 px-4 py-2.5 text-sm font-bold text-slate-900 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
         >
           {loading ? "Parsing..." : "Upload Statement"}
         </button>
 
-        <p className="text-sm text-slate-300">{status}</p>
+        <p className="break-words text-sm text-slate-300">{status}</p>
       </div>
     </div>
   );

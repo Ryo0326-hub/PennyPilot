@@ -24,13 +24,13 @@ type SectionHeadingProps = {
 
 function SectionHeading({ title, subtitle, badge }: SectionHeadingProps) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-start">
       <div className="space-y-1">
-        <h2 className="text-2xl font-bold tracking-tight text-white">{title}</h2>
+        <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">{title}</h2>
         <p className="text-sm text-slate-300">{subtitle}</p>
       </div>
       {badge ? (
-        <span className="rounded-full border border-cyan-300/35 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-cyan-200">
+        <span className="rounded-full border border-cyan-300/35 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-cyan-200 sm:mt-0">
           {badge}
         </span>
       ) : null}
@@ -73,25 +73,24 @@ export default function Home() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden px-4 py-8 sm:px-8">
+    <main className="relative min-h-screen overflow-hidden px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-24 left-1/3 h-64 w-64 rounded-full bg-cyan-500/20 blur-3xl" />
         <div className="absolute top-1/3 -left-16 h-72 w-72 rounded-full bg-blue-500/15 blur-3xl" />
         <div className="absolute bottom-0 right-1/4 h-80 w-80 rounded-full bg-emerald-500/15 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto max-w-7xl space-y-8">
-        <header className="rounded-3xl border border-white/15 bg-gradient-to-br from-slate-900/95 via-slate-900/85 to-cyan-950/80 p-6 shadow-[0_20px_70px_rgba(7,12,26,0.45)] sm:p-8">
+      <div className="relative mx-auto max-w-7xl space-y-6 sm:space-y-8">
+        <header className="rounded-3xl border border-white/15 bg-gradient-to-br from-slate-900/95 via-slate-900/85 to-cyan-950/80 p-5 shadow-[0_20px_70px_rgba(7,12,26,0.45)] sm:p-8">
           <div className="max-w-3xl space-y-3">
-            <span className="inline-flex rounded-full border border-cyan-300/35 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+            <span className="inline-flex rounded-full border border-cyan-300/35 bg-cyan-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-cyan-200 sm:text-xs sm:tracking-[0.2em]">
               Money Coach, Powered by AI
             </span>
-            <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-4xl">
               PennyPilot
             </h1>
             <p className="text-sm leading-7 text-slate-200 sm:text-base">
-              Drop in your bank statement and quickly see where your money goes, how to save more,
-              and what to change next.
+              Drop your bank statement and see where your money goes and how to save more
             </p>
             <p className="text-xs font-medium tracking-wide text-emerald-300 sm:text-sm">
               Upload your bank statement pdf. We sort your spending, show simple charts, and give
@@ -106,14 +105,14 @@ export default function Home() {
 
         {parsedData && (
           <section className="space-y-4">
-            <div className="rounded-3xl border border-white/15 bg-gradient-to-r from-slate-900/80 to-slate-800/70 p-6 shadow-lg backdrop-blur">
+            <div className="rounded-3xl border border-white/15 bg-gradient-to-r from-slate-900/80 to-slate-800/70 p-5 shadow-lg backdrop-blur sm:p-6">
               <SectionHeading
                 title="Uploaded Statement"
                 subtitle="Parsed file and ingestion metadata."
                 badge="Input"
               />
               <div className="mt-4 grid gap-3 text-sm text-slate-200 md:grid-cols-3">
-                <p>Filename: {parsedData.filename}</p>
+                <p className="break-all">Filename: {parsedData.filename}</p>
                 <p>Statement ID: {parsedData.statement_id}</p>
                 <p>Rows parsed: {parsedData.row_count}</p>
               </div>
