@@ -35,14 +35,15 @@ export default function UploadStatementForm({ onParsed }: Props) {
       onParsed(response.data);
       setStatus(`Parsed ${response.data.row_count} transactions successfully.`);
     } catch (error: unknown) {
-      const message =
+      const detail =
         typeof error === "object" &&
         error !== null &&
           "response" in error &&
         typeof (error as { response?: { data?: { detail?: unknown } } }).response?.data
           ?.detail === "string"
           ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
-          : "Upload failed. Please check your CSV/PDF.";
+          : undefined;
+      const message = detail ?? "Upload failed. Please check your CSV/PDF.";
       setStatus(message);
     } finally {
       setLoading(false);
