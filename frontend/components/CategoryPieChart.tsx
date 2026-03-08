@@ -1,0 +1,89 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+import { StatementSummary } from "../types/transaction";
+import { formatCurrency } from "../lib/format";
+
+type Props = {
+  summary: StatementSummary;
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  groceries: "#38bdf8",
+  restaurants: "#34d399",
+  subscriptions: "#f59e0b",
+  transportation: "#f97316",
+  shopping: "#60a5fa",
+  payments: "#10b981",
+  income: "#a78bfa",
+  other: "#f87171",
+};
+
+export default function CategoryPieChart({ summary }: Props) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const data = useMemo(() => summary.category_totals, [summary.category_totals]);
+
+  return (
+    <div className="rounded-2xl border border-violet-300/20 bg-gradient-to-br from-slate-900/85 to-violet-950/45 p-4 shadow-[0_14px_35px_rgba(46,25,93,0.34)]">
+      <h3 className="text-lg font-semibold text-violet-100">Category Share</h3>
+      <p className="mt-1 text-sm text-slate-300">
+        How your spending is distributed across categories.
+      </p>
+
+      <div className="mt-4 h-80">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="total"
+              nameKey="category"
+              cx="50%"
+              cy="50%"
+              outerRadius={100}
+              label
+              isAnimationActive
+              animationDuration={700}
+              animationEasing="ease-out"
+              onMouseEnter={(_, index: number) => setActiveIndex(index)}
+              onMouseLeave={() => setActiveIndex(null)}
+            >
+              {data.map((entry, index) => {
+                const baseColor = CATEGORY_COLORS[entry.category] ?? "#60a5fa";
+                const isActive = activeIndex === index;
+
+                return (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={baseColor}
+                    fillOpacity={isActive || activeIndex === null ? 1 : 0.45}
+                    stroke={isActive ? "#ffffff" : "#0b1324"}
+                    strokeWidth={isActive ? 3 : 1}
+                  />
+                );
+              })}
+            </Pie>
+            <Tooltip
+              formatter={(value: unknown) => formatCurrency(Number(value))}
+              contentStyle={{
+                backgroundColor: "#120c29",
+                border: "1px solid rgba(196,181,253,0.4)",
+                borderRadius: "12px",
+                color: "#ffffff",
+              }}
+              labelStyle={{ color: "#ffffff", textTransform: "capitalize" }}
+            />
+            <Legend wrapperStyle={{ color: "#ddd6fe" }} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
