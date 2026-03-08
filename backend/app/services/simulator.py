@@ -7,9 +7,9 @@ def build_simulation(summary: dict, strategy: dict) -> dict[str, Any]:
 
     strategy example:
     {
-        "restaurants_reduction_pct": 40,
-        "subscriptions_reduction_pct": 20,
-        "shopping_reduction_pct": 25
+        "restaurants": 40,
+        "subscriptions": 20,
+        "shopping": 25
     }
     """
 
@@ -18,21 +18,20 @@ def build_simulation(summary: dict, strategy: dict) -> dict[str, Any]:
         for item in summary["category_totals"]
     }
 
-    restaurants_total = category_lookup.get("restaurants", 0.0)
-    subscriptions_total = category_lookup.get("subscriptions", 0.0)
-    shopping_total = category_lookup.get("shopping", 0.0)
+    applied_strategy: dict[str, float] = {}
+    savings_by_category: dict[str, float] = {}
+    total_monthly_savings = 0.0
 
-    restaurants_pct = max(0, min(strategy.get("restaurants_reduction_pct", 0), 100))
-    subscriptions_pct = max(0, min(strategy.get("subscriptions_reduction_pct", 0), 100))
-    shopping_pct = max(0, min(strategy.get("shopping_reduction_pct", 0), 100))
+    for category, total in category_lookup.items():
+        # Backward-compatible support for legacy strategy keys.
+        raw_pct = strategy.get(category, strategy.get(f"{category}_reduction_pct", 0))
+        reduction_pct = round(max(0, min(float(raw_pct), 100)), 2)
+        savings = round(total * (reduction_pct / 100), 2)
+        applied_strategy[category] = reduction_pct
+        savings_by_category[category] = savings
+        total_monthly_savings += savings
 
-    restaurants_savings = round(restaurants_total * (restaurants_pct / 100), 2)
-    subscriptions_savings = round(subscriptions_total * (subscriptions_pct / 100), 2)
-    shopping_savings = round(shopping_total * (shopping_pct / 100), 2)
-
-    total_monthly_savings = round(
-        restaurants_savings + subscriptions_savings + shopping_savings, 2
-    )
+    total_monthly_savings = round(total_monthly_savings, 2)
 
     projected_spending = round(summary["total_spent"] - total_monthly_savings, 2)
     annual_savings = round(total_monthly_savings * 12, 2)
@@ -41,15 +40,7 @@ def build_simulation(summary: dict, strategy: dict) -> dict[str, Any]:
     for item in summary["category_totals"]:
         category = item["category"]
         total = item["total"]
-
-        if category == "restaurants":
-            new_total = round(total - restaurants_savings, 2)
-        elif category == "subscriptions":
-            new_total = round(total - subscriptions_savings, 2)
-        elif category == "shopping":
-            new_total = round(total - shopping_savings, 2)
-        else:
-            new_total = total
+        new_total = round(total - savings_by_category.get(category, 0.0), 2)
 
         updated_category_totals.append(
             {
@@ -64,10 +55,6 @@ def build_simulation(summary: dict, strategy: dict) -> dict[str, Any]:
         "projected_total_spent": projected_spending,
         "monthly_savings": total_monthly_savings,
         "annual_savings": annual_savings,
-        "applied_strategy": {
-            "restaurants_reduction_pct": restaurants_pct,
-            "subscriptions_reduction_pct": subscriptions_pct,
-            "shopping_reduction_pct": shopping_pct,
-        },
+        "applied_strategy": applied_strategy,
         "updated_category_totals": updated_category_totals,
     }

@@ -18,9 +18,19 @@ ENABLE_PERSONAL_GOALS = os.getenv("ENABLE_PERSONAL_GOALS", "true").strip().lower
 
 
 class StrategyRequest(BaseModel):
-    restaurants_reduction_pct: float = Field(default=0, ge=0, le=100)
-    subscriptions_reduction_pct: float = Field(default=0, ge=0, le=100)
-    shopping_reduction_pct: float = Field(default=0, ge=0, le=100)
+    category_reductions: dict[str, float] = Field(default_factory=dict)
+
+    @field_validator("category_reductions")
+    @classmethod
+    def validate_category_reductions(cls, value: dict[str, float]) -> dict[str, float]:
+        if len(value) > 40:
+            raise ValueError("Too many category reductions")
+        for category, pct in value.items():
+            if not str(category).strip():
+                raise ValueError("Category name cannot be empty")
+            if pct < 0 or pct > 100:
+                raise ValueError("Reduction percent must be between 0 and 100")
+        return value
 
 
 class GoalInput(BaseModel):
@@ -66,7 +76,7 @@ def get_simulation_insights(
     personalized_plan = build_personalized_plan(
         summary=summary,
         goals=[goal.model_dump(mode="json") for goal in payload.goals] if ENABLE_PERSONAL_GOALS else [],
-        strategy_override=payload.strategy.model_dump() if payload.strategy else None,
+        strategy_override=payload.strategy.category_reductions if payload.strategy else None,
     )
 
     explanation = generate_simulation_insight(

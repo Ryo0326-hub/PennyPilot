@@ -42,9 +42,7 @@ export type InsightsResponse = {
 };
 
 export type StrategyRequest = {
-  restaurants_reduction_pct: number;
-  subscriptions_reduction_pct: number;
-  shopping_reduction_pct: number;
+  category_reductions: Record<string, number>;
 };
 
 export type GoalInput = {
@@ -65,7 +63,7 @@ export type SimulationResult = {
   projected_total_spent: number;
   monthly_savings: number;
   annual_savings: number;
-  applied_strategy: StrategyRequest;
+  applied_strategy: Record<string, number>;
   updated_category_totals: UpdatedCategoryTotal[];
 };
 

@@ -22,23 +22,38 @@ type Props = {
 export default function CategoryBarChart({ summary }: Props) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  const data = useMemo(() => summary.category_totals, [summary.category_totals]);
+  const data = useMemo(
+    () =>
+      [...summary.category_totals].sort((a, b) => {
+        if (b.total !== a.total) return b.total - a.total;
+        return a.category.localeCompare(b.category);
+      }),
+    [summary.category_totals]
+  );
   const categoryColorMap = useMemo(
     () => buildCategoryColorMap(data.map((item) => item.category)),
     [data]
   );
+  const chartHeight = Math.max(320, data.length * 52);
 
   return (
     <div className="rounded-2xl border border-blue-300/20 bg-gradient-to-br from-slate-900/85 to-blue-950/45 p-4 shadow-[0_14px_35px_rgba(8,29,77,0.35)]">
       <h3 className="text-lg font-semibold text-blue-100">Spending by Category</h3>
       <p className="mt-1 text-sm text-slate-300">Debit transactions only.</p>
 
-      <div className="mt-4 h-80">
+      <div className="mt-4" style={{ height: chartHeight }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data}>
+          <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, left: 16, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e3a5f" />
-            <XAxis dataKey="category" stroke="#bfdbfe" />
-            <YAxis stroke="#bfdbfe" />
+            <XAxis type="number" stroke="#bfdbfe" />
+            <YAxis
+              type="category"
+              dataKey="category"
+              stroke="#bfdbfe"
+              width={160}
+              interval={0}
+              tick={{ fill: "#bfdbfe", fontSize: 12 }}
+            />
             <Tooltip
               formatter={(value: unknown) => formatCurrency(Number(value))}
               contentStyle={{
@@ -59,7 +74,8 @@ export default function CategoryBarChart({ summary }: Props) {
             />
             <Bar
               dataKey="total"
-              radius={[8, 8, 0, 0]}
+              radius={[0, 8, 8, 0]}
+              barSize={20}
               isAnimationActive
               animationDuration={700}
               animationEasing="ease-out"

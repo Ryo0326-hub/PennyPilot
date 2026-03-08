@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import { formatCurrency } from "../lib/format";
 import ReactMarkdown from "react-markdown";
@@ -220,19 +220,9 @@ function toReadableStrategyMarkdown(markdown: string) {
   return output.join("\n");
 }
 
-function findRecordedTotal(categoryTotals: CategoryTotal[], aliases: string[]) {
-  const normalizedAliases = aliases.map((alias) => alias.toLowerCase());
-  const found = categoryTotals.find((item) =>
-    normalizedAliases.includes(item.category.toLowerCase())
-  );
-  return found?.total ?? 0;
-}
-
 export default function StrategySimulator({ statementId, categoryTotals }: Props) {
   const [strategy, setStrategy] = useState<StrategyRequest>({
-    restaurants_reduction_pct: 40,
-    subscriptions_reduction_pct: 20,
-    shopping_reduction_pct: 25,
+    category_reductions: {},
   });
 
   const [simulation, setSimulation] = useState<SimulationResult | null>(null);
@@ -247,15 +237,26 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
     { id: "goal-1", name: "", description: "", target_amount: undefined, target_date: "" },
   ]);
 
-  const restaurantsRecorded = findRecordedTotal(categoryTotals, [
-    "restaurants",
-    "restaurant",
-  ]);
-  const subscriptionsRecorded = findRecordedTotal(categoryTotals, [
-    "subscriptions",
-    "subscription",
-  ]);
-  const shoppingRecorded = findRecordedTotal(categoryTotals, ["shopping", "shop"]);
+  const sortedCategoryTotals = useMemo(
+    () =>
+      [...categoryTotals].sort((a, b) => {
+        if (b.total !== a.total) return b.total - a.total;
+        return a.category.localeCompare(b.category);
+      }),
+    [categoryTotals]
+  );
+
+  useEffect(() => {
+    setStrategy((prev) => {
+      const categoryReductions: Record<string, number> = { ...prev.category_reductions };
+      for (const item of categoryTotals) {
+        if (categoryReductions[item.category] == null) {
+          categoryReductions[item.category] = 0;
+        }
+      }
+      return { category_reductions: categoryReductions };
+    });
+  }, [categoryTotals]);
 
   const runSimulation = async () => {
     try {
@@ -347,6 +348,10 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
             Add goal
           </button>
         </div>
+        <p className="text-xs text-slate-300">
+          Add the goals you want to fund (amount optional), then run the simulator to get an AI
+          plan.
+        </p>
 
         <div className="space-y-3">
           {goals.map((goal) => (
@@ -356,61 +361,35 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
       </div>
 
       <div className="grid gap-4">
-        <SliderRow
-          label="Restaurant reduction"
-          value={strategy.restaurants_reduction_pct}
-          recordedAmount={restaurantsRecorded}
-          reductionAmount={
-            (restaurantsRecorded * strategy.restaurants_reduction_pct) / 100
-          }
-          projectedAmount={
-            restaurantsRecorded -
-            (restaurantsRecorded * strategy.restaurants_reduction_pct) / 100
-          }
-          onChange={(value) =>
-            setStrategy((prev) => ({
-              ...prev,
-              restaurants_reduction_pct: value,
-            }))
-          }
-        />
+        <p className="text-xs text-slate-300">
+          Adjust each category reduction to test trade-offs and see how much you can save monthly.
+        </p>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {sortedCategoryTotals.map((item) => {
+            const reductionPct = strategy.category_reductions[item.category] ?? 0;
+            const reductionAmount = (item.total * reductionPct) / 100;
+            const projectedAmount = item.total - reductionAmount;
 
-        <SliderRow
-          label="Subscription reduction"
-          value={strategy.subscriptions_reduction_pct}
-          recordedAmount={subscriptionsRecorded}
-          reductionAmount={
-            (subscriptionsRecorded * strategy.subscriptions_reduction_pct) / 100
-          }
-          projectedAmount={
-            subscriptionsRecorded -
-            (subscriptionsRecorded * strategy.subscriptions_reduction_pct) / 100
-          }
-          onChange={(value) =>
-            setStrategy((prev) => ({
-              ...prev,
-              subscriptions_reduction_pct: value,
-            }))
-          }
-        />
-
-        <SliderRow
-          label="Shopping reduction"
-          value={strategy.shopping_reduction_pct}
-          recordedAmount={shoppingRecorded}
-          reductionAmount={
-            (shoppingRecorded * strategy.shopping_reduction_pct) / 100
-          }
-          projectedAmount={
-            shoppingRecorded - (shoppingRecorded * strategy.shopping_reduction_pct) / 100
-          }
-          onChange={(value) =>
-            setStrategy((prev) => ({
-              ...prev,
-              shopping_reduction_pct: value,
-            }))
-          }
-        />
+            return (
+              <SliderRow
+                key={item.category}
+                label={`${item.category} reduction`}
+                value={reductionPct}
+                recordedAmount={item.total}
+                reductionAmount={reductionAmount}
+                projectedAmount={projectedAmount}
+                onChange={(value) =>
+                  setStrategy((prev) => ({
+                    category_reductions: {
+                      ...prev.category_reductions,
+                      [item.category]: value,
+                    },
+                  }))
+                }
+              />
+            );
+          })}
+        </div>
       </div>
 
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">

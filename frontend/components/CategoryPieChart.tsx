@@ -20,6 +20,10 @@ type Props = {
 export default function CategoryPieChart({ summary }: Props) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const data = useMemo(() => summary.category_totals, [summary.category_totals]);
+  const total = useMemo(
+    () => data.reduce((acc, item) => acc + item.total, 0),
+    [data]
+  );
   const categoryColorMap = useMemo(
     () => buildCategoryColorMap(data.map((item) => item.category)),
     [data]
@@ -41,8 +45,11 @@ export default function CategoryPieChart({ summary }: Props) {
               nameKey="category"
               cx="50%"
               cy="50%"
-              outerRadius={100}
-              label
+              outerRadius={102}
+              innerRadius={36}
+              label={false}
+              minAngle={2}
+              paddingAngle={1}
               isAnimationActive
               animationDuration={700}
               animationEasing="ease-out"
@@ -74,7 +81,14 @@ export default function CategoryPieChart({ summary }: Props) {
               }}
               labelStyle={{ color: "#ffffff", textTransform: "capitalize" }}
             />
-            <Legend wrapperStyle={{ color: "#ddd6fe" }} />
+            <Legend
+              wrapperStyle={{ color: "#ddd6fe" }}
+              formatter={(value) => {
+                const matched = data.find((item) => item.category === value);
+                const pct = matched && total > 0 ? (matched.total / total) * 100 : 0;
+                return `${value} (${pct.toFixed(1)}%)`;
+              }}
+            />
           </PieChart>
         </ResponsiveContainer>
       </div>

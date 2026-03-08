@@ -164,20 +164,11 @@ def build_personalized_plan(
         required_monthly_savings,
     )
 
-    auto_strategy = {
-        "restaurants_reduction_pct": 0.0,
-        "subscriptions_reduction_pct": 0.0,
-        "shopping_reduction_pct": 0.0,
-    }
+    auto_strategy: dict[str, float] = {}
     for recommendation in recommendations:
         category = recommendation["category"]
-        reduction_pct = recommendation["recommended_reduction_pct"]
-        if category == "restaurants":
-            auto_strategy["restaurants_reduction_pct"] = reduction_pct
-        elif category == "subscriptions":
-            auto_strategy["subscriptions_reduction_pct"] = reduction_pct
-        elif category == "shopping":
-            auto_strategy["shopping_reduction_pct"] = reduction_pct
+        reduction_pct = float(recommendation["recommended_reduction_pct"])
+        auto_strategy[category] = reduction_pct
 
     simulation_strategy = strategy_override or auto_strategy
     simulation = build_simulation(summary, simulation_strategy)

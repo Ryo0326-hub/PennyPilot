@@ -32,9 +32,7 @@ Monthly savings: {simulation["monthly_savings"]}
 Annual savings: {simulation["annual_savings"]}
 
 Applied strategy:
-Restaurants reduction: {simulation["applied_strategy"]["restaurants_reduction_pct"]}%
-Subscriptions reduction: {simulation["applied_strategy"]["subscriptions_reduction_pct"]}%
-Shopping reduction: {simulation["applied_strategy"]["shopping_reduction_pct"]}%
+{simulation["applied_strategy"]}
 
 Category results:
 {simulation["updated_category_totals"]}
