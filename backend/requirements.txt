@@ -7,3 +7,4 @@ python-dotenv
 google-genai
 pdfplumber
 pypdf
+psycopg2-binary
