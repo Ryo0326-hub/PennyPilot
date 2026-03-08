@@ -35,3 +35,9 @@ body {
   background: rgba(56, 189, 248, 0.35);
   color: #f8fcff;
 }
+
+.goal-date-input::-webkit-calendar-picker-indicator {
+  filter: invert(79%) sepia(43%) saturate(780%) hue-rotate(153deg) brightness(104%)
+    contrast(104%);
+  cursor: pointer;
+}

@@ -4,7 +4,6 @@ import { useState } from "react";
 import UploadStatementForm from "../components/UploadStatementForm";
 import TransactionTable from "../components/TransactionTable";
 import SummaryCards from "../components/SummaryCards";
-import CategoryBreakdown from "../components/CategoryBreakdown";
 import CategoryBarChart from "../components/CategoryBarChart";
 import CategoryPieChart from "../components/CategoryPieChart";
 import AIInsightsCard from "../components/AIInsightsCard";
@@ -134,8 +133,6 @@ export default function Home() {
               <CategoryBarChart summary={summary} />
               <CategoryPieChart summary={summary} />
             </div>
-
-            <CategoryBreakdown summary={summary} />
           </section>
         )}
 

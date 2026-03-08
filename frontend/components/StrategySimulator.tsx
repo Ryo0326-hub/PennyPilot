@@ -6,7 +6,11 @@ import { formatCurrency } from "../lib/format";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
+  CategoryReductionRecommendation,
   CategoryTotal,
+  EstimatedGoalCost,
+  GoalFundingPlan,
+  GoalInput,
   SimulationInsightResponse,
   SimulationResult,
   StrategyRequest,
@@ -25,6 +29,8 @@ type SliderRowProps = {
   projectedAmount: number;
   onChange: (value: number) => void;
 };
+
+type GoalDraft = GoalInput & { id: string };
 
 function SliderRow({
   label,
@@ -73,6 +79,75 @@ function SliderRow({
           <p className="font-semibold text-cyan-100">{formatCurrency(projectedAmount)}</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function GoalCard({
+  goal,
+  onChange,
+  onRemove,
+}: {
+  goal: GoalDraft;
+  onChange: (goalId: string, patch: Partial<GoalDraft>) => void;
+  onRemove: (goalId: string) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/15 bg-white/[0.03] p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-sm font-semibold text-slate-100">Goal</p>
+        <button
+          type="button"
+          onClick={() => onRemove(goal.id)}
+          className="text-xs text-rose-300 hover:text-rose-200"
+        >
+          Remove
+        </button>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <input
+          value={goal.name ?? ""}
+          onChange={(e) => onChange(goal.id, { name: e.target.value })}
+          placeholder="Goal name (e.g., Camera lens)"
+          className="rounded-xl border border-white/20 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+        />
+        <input
+          value={goal.target_amount ?? ""}
+          onChange={(e) =>
+            onChange(goal.id, {
+              target_amount: e.target.value === "" ? undefined : Number(e.target.value),
+            })
+          }
+          type="number"
+          min={0}
+          step="0.01"
+          placeholder="Target amount (optional)"
+          className="rounded-xl border border-white/20 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+        />
+        <input
+          value={goal.target_date ?? ""}
+          onChange={(e) => onChange(goal.id, { target_date: e.target.value || undefined })}
+          type="date"
+          lang="en-US"
+          aria-label="Target date (optional)"
+          title="Target date (optional)"
+          className="goal-date-input rounded-xl border border-white/20 bg-slate-900/70 px-3 py-2 text-sm text-white"
+        />
+      </div>
+
+      <input
+        value={goal.description ?? ""}
+        onChange={(e) => onChange(goal.id, { description: e.target.value })}
+        placeholder="Description (optional)"
+        className="mt-3 w-full rounded-xl border border-white/20 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+      />
+
+      {goal.target_amount == null && (
+        <p className="mt-2 text-xs text-cyan-200">
+          Auto-estimate amount: AI will estimate this goal using web context.
+        </p>
+      )}
     </div>
   );
 }
@@ -161,9 +236,16 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
   });
 
   const [simulation, setSimulation] = useState<SimulationResult | null>(null);
+  const [estimatedGoalCosts, setEstimatedGoalCosts] = useState<EstimatedGoalCost[]>([]);
+  const [goalFundingPlan, setGoalFundingPlan] = useState<GoalFundingPlan | null>(null);
+  const [recommendedCuts, setRecommendedCuts] = useState<CategoryReductionRecommendation[]>([]);
+  const [habitChallenges, setHabitChallenges] = useState<string[]>([]);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [goals, setGoals] = useState<GoalDraft[]>([
+    { id: "goal-1", name: "", description: "", target_amount: undefined, target_date: "" },
+  ]);
 
   const restaurantsRecorded = findRecordedTotal(categoryTotals, [
     "restaurants",
@@ -181,22 +263,67 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
       setError(null);
       setAiExplanation(null);
       setSimulation(null);
+      setEstimatedGoalCosts([]);
+      setGoalFundingPlan(null);
+      setRecommendedCuts([]);
+      setHabitChallenges([]);
+
+      const normalizedGoals = goals
+        .filter((goal) => goal.name?.trim())
+        .map((goal) => ({
+          name: goal.name.trim(),
+          description: goal.description?.trim() || undefined,
+          target_amount: goal.target_amount,
+          target_date: goal.target_date || undefined,
+        }));
 
       const response = await api.post<SimulationInsightResponse>(
         `/simulation-insights/${statementId}`,
-        strategy
+        {
+          strategy,
+          goals: normalizedGoals,
+        }
       );
 
       setSimulation(response.data.simulation);
+      setEstimatedGoalCosts(response.data.estimated_goal_costs);
+      setGoalFundingPlan(response.data.goal_funding_plan);
+      setRecommendedCuts(response.data.recommended_category_reductions);
+      setHabitChallenges(response.data.habit_challenges);
       setAiExplanation(response.data.ai_explanation);
     } catch (err) {
       console.error("Simulation failed:", err);
       setError("Failed to run simulation.");
       setSimulation(null);
+      setEstimatedGoalCosts([]);
+      setGoalFundingPlan(null);
+      setRecommendedCuts([]);
+      setHabitChallenges([]);
       setAiExplanation(null);
     } finally {
       setLoading(false);
     }
+  };
+
+  const updateGoal = (goalId: string, patch: Partial<GoalDraft>) => {
+    setGoals((prev) => prev.map((goal) => (goal.id === goalId ? { ...goal, ...patch } : goal)));
+  };
+
+  const addGoal = () => {
+    const goalId = `goal-${Date.now()}`;
+    setGoals((prev) => [
+      ...prev,
+      { id: goalId, name: "", description: "", target_amount: undefined, target_date: "" },
+    ]);
+  };
+
+  const removeGoal = (goalId: string) => {
+    setGoals((prev) => {
+      if (prev.length <= 1) {
+        return prev;
+      }
+      return prev.filter((goal) => goal.id !== goalId);
+    });
   };
 
   return (
@@ -204,8 +331,28 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
       <div className="space-y-1">
         <h3 className="text-lg font-semibold text-white sm:text-xl">Strategy Simulator</h3>
         <p className="text-sm text-slate-300">
-          Test how reducing discretionary spending could affect your monthly and annual savings.
+          Add savings goals, then test how reducing discretionary spending can fund them.
         </p>
+      </div>
+
+      <div className="space-y-3 rounded-2xl border border-cyan-300/20 bg-cyan-500/5 p-4">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-cyan-100">Personal Goals</h4>
+          <button
+            type="button"
+            onClick={addGoal}
+            disabled={goals.length >= 5}
+            className="rounded-lg border border-cyan-300/40 px-3 py-1 text-xs font-semibold text-cyan-100 hover:bg-cyan-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Add goal
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {goals.map((goal) => (
+            <GoalCard key={goal.id} goal={goal} onChange={updateGoal} onRemove={removeGoal} />
+          ))}
+        </div>
       </div>
 
       <div className="grid gap-4">
@@ -286,6 +433,98 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
 
       {simulation && (
         <div className="space-y-5">
+          {estimatedGoalCosts.length > 0 && (
+            <div className="rounded-2xl border border-white/15 bg-white/[0.03] p-5 shadow-sm">
+              <h4 className="text-base font-semibold text-white">Goal Cost Estimates</h4>
+              <div className="mt-4 space-y-3">
+                {estimatedGoalCosts.map((goal) => (
+                  <div
+                    key={`${goal.name}-${goal.target_date ?? "none"}`}
+                    className="rounded-xl border border-white/15 px-4 py-3"
+                  >
+                    <p className="font-medium text-slate-100">{goal.name}</p>
+                    <p className="text-sm text-slate-300">
+                      {formatCurrency(goal.estimated_amount)} ({goal.source.replace("_", " ")},{" "}
+                      {goal.confidence} confidence)
+                    </p>
+                    <p className="text-xs text-slate-400">{goal.rationale}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {goalFundingPlan && (
+            <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/5 p-5 shadow-sm">
+              <h4 className="text-base font-semibold text-emerald-100">Goal Funding Plan</h4>
+              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-400">Total goals</p>
+                  <p className="text-lg font-semibold text-white">
+                    {formatCurrency(goalFundingPlan.total_goal_amount)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-400">Required monthly</p>
+                  <p className="text-lg font-semibold text-cyan-100">
+                    {formatCurrency(goalFundingPlan.required_monthly_savings)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-400">
+                    Projected monthly
+                  </p>
+                  <p className="text-lg font-semibold text-emerald-200">
+                    {formatCurrency(goalFundingPlan.projected_monthly_savings)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-400">Monthly shortfall</p>
+                  <p className="text-lg font-semibold text-amber-200">
+                    {formatCurrency(goalFundingPlan.monthly_shortfall)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {recommendedCuts.length > 0 && (
+            <div className="rounded-2xl border border-violet-300/20 bg-violet-500/5 p-5 shadow-sm">
+              <h4 className="text-base font-semibold text-violet-100">
+                Recommended Category Reductions
+              </h4>
+              <div className="mt-4 space-y-2">
+                {recommendedCuts.map((cut) => (
+                  <div
+                    key={`${cut.category}-${cut.priority}`}
+                    className="flex items-center justify-between rounded-xl border border-white/15 px-4 py-3 text-sm"
+                  >
+                    <p className="capitalize text-slate-200">{cut.category}</p>
+                    <p className="font-semibold text-emerald-200">
+                      -{formatCurrency(cut.recommended_reduction_amount)} ({cut.recommended_reduction_pct}%)
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {habitChallenges.length > 0 && (
+            <div className="rounded-2xl border border-cyan-300/20 bg-cyan-500/5 p-5 shadow-sm">
+              <h4 className="text-base font-semibold text-cyan-100">Challenges This Week</h4>
+              <ul className="mt-4 space-y-2">
+                {habitChallenges.map((challenge, index) => (
+                  <li
+                    key={`${index}-${challenge}`}
+                    className="rounded-xl border border-white/15 px-4 py-3 text-sm text-slate-200"
+                  >
+                    {challenge}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-2xl border border-slate-300/20 bg-white/[0.03] p-5 shadow-sm transition-colors hover:bg-white/[0.07]">
               <p className="text-sm text-slate-300">Original Spending</p>

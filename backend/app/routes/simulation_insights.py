@@ -1,17 +1,60 @@
+from __future__ import annotations
+
+import os
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.db.models import Statement
 from app.services.summary import build_statement_summary
-from app.services.simulator import build_simulation
+from app.services.personalized_plan import build_personalized_plan
 from app.services.simulation_insights import generate_simulation_insight
 
 router = APIRouter(prefix="/simulation-insights", tags=["simulation-insights"])
+ENABLE_PERSONAL_GOALS = os.getenv("ENABLE_PERSONAL_GOALS", "true").strip().lower() == "true"
+
+
+class StrategyRequest(BaseModel):
+    restaurants_reduction_pct: float = Field(default=0, ge=0, le=100)
+    subscriptions_reduction_pct: float = Field(default=0, ge=0, le=100)
+    shopping_reduction_pct: float = Field(default=0, ge=0, le=100)
+
+
+class GoalInput(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=300)
+    target_amount: float | None = Field(default=None, gt=0)
+    target_date: date | None = None
+
+    @field_validator("target_date")
+    @classmethod
+    def validate_target_date(cls, value: date | None) -> date | None:
+        if value and value <= date.today():
+            raise ValueError("target_date must be in the future")
+        return value
+
+
+class PersonalPlanRequest(BaseModel):
+    strategy: StrategyRequest | None = None
+    goals: list[GoalInput] = Field(default_factory=list)
+
+    @field_validator("goals")
+    @classmethod
+    def validate_goal_count(cls, value: list[GoalInput]) -> list[GoalInput]:
+        if len(value) > 5:
+            raise ValueError("A maximum of 5 goals are supported")
+        return value
 
 
 @router.post("/{statement_id}")
-def get_simulation_insights(statement_id: int, strategy: dict, db: Session = Depends(get_db)):
+def get_simulation_insights(
+    statement_id: int,
+    payload: PersonalPlanRequest,
+    db: Session = Depends(get_db),
+):
 
     statement = db.query(Statement).filter(Statement.id == statement_id).first()
 
@@ -20,13 +63,27 @@ def get_simulation_insights(statement_id: int, strategy: dict, db: Session = Dep
 
     summary = build_statement_summary(statement)
 
-    simulation = build_simulation(summary, strategy)
+    personalized_plan = build_personalized_plan(
+        summary=summary,
+        goals=[goal.model_dump(mode="json") for goal in payload.goals] if ENABLE_PERSONAL_GOALS else [],
+        strategy_override=payload.strategy.model_dump() if payload.strategy else None,
+    )
 
-    explanation = generate_simulation_insight(simulation)
+    explanation = generate_simulation_insight(
+        simulation=personalized_plan["simulation"],
+        estimated_goal_costs=personalized_plan["estimated_goal_costs"],
+        goal_funding_plan=personalized_plan["goal_funding_plan"],
+        recommended_category_reductions=personalized_plan["recommended_category_reductions"],
+        habit_challenges=personalized_plan["habit_challenges"],
+    )
 
     return {
         "statement_id": statement.id,
         "filename": statement.filename,
-        "simulation": simulation,
-        "ai_explanation": explanation
+        "simulation": personalized_plan["simulation"],
+        "estimated_goal_costs": personalized_plan["estimated_goal_costs"],
+        "goal_funding_plan": personalized_plan["goal_funding_plan"],
+        "recommended_category_reductions": personalized_plan["recommended_category_reductions"],
+        "habit_challenges": personalized_plan["habit_challenges"],
+        "ai_explanation": explanation,
     }

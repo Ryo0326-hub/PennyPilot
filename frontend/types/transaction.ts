@@ -47,6 +47,13 @@ export type StrategyRequest = {
   shopping_reduction_pct: number;
 };
 
+export type GoalInput = {
+  name: string;
+  description?: string;
+  target_amount?: number;
+  target_date?: string;
+};
+
 export type UpdatedCategoryTotal = {
   category: string;
   original_total: number;
@@ -68,9 +75,51 @@ export type SimulationResponse = {
   simulation: SimulationResult;
 };
 
+export type EstimatedGoalCost = {
+  name: string;
+  description: string | null;
+  estimated_amount: number;
+  source: "user_input" | "web_estimate" | "fallback_estimate";
+  confidence: "high" | "medium" | "low";
+  rationale: string;
+  target_date: string | null;
+  horizon_months: number;
+};
+
+export type GoalFundingItem = {
+  name: string;
+  estimated_amount: number;
+  target_date: string | null;
+  horizon_months: number;
+  required_monthly_savings: number;
+};
+
+export type GoalFundingPlan = {
+  total_goal_amount: number;
+  required_monthly_savings: number;
+  projected_monthly_savings: number;
+  projected_annual_savings: number;
+  monthly_shortfall: number;
+  feasible: boolean;
+  goals: GoalFundingItem[];
+};
+
+export type CategoryReductionRecommendation = {
+  category: string;
+  current_monthly_spend: number;
+  recommended_reduction_amount: number;
+  recommended_reduction_pct: number;
+  projected_monthly_spend: number;
+  priority: number;
+};
+
 export type SimulationInsightResponse = {
-  statement_id: number
-  filename: string
-  simulation: SimulationResult
-  ai_explanation: string
-}
+  statement_id: number;
+  filename: string;
+  simulation: SimulationResult;
+  estimated_goal_costs: EstimatedGoalCost[];
+  goal_funding_plan: GoalFundingPlan;
+  recommended_category_reductions: CategoryReductionRecommendation[];
+  habit_challenges: string[];
+  ai_explanation: string;
+};

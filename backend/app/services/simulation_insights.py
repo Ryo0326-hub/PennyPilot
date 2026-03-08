@@ -9,15 +9,21 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 MODEL = "gemini-2.5-flash"
 
 
-def generate_simulation_insight(simulation: dict) -> str:
+def generate_simulation_insight(
+    simulation: dict,
+    estimated_goal_costs: list[dict],
+    goal_funding_plan: dict,
+    recommended_category_reductions: list[dict],
+    habit_challenges: list[str],
+) -> str:
     prompt = f"""
 You are an AI financial advisor.
 
-A spending reduction strategy was simulated for a user's credit card statement.
+A personalized spending reduction plan was generated for a user's credit card statement.
 
 Explain the result in a clear and helpful way.
 
-Simulation results:
+Simulation Results:
 
 Original monthly spending: {simulation["original_total_spent"]}
 Projected spending after strategy: {simulation["projected_total_spent"]}
@@ -33,13 +39,27 @@ Shopping reduction: {simulation["applied_strategy"]["shopping_reduction_pct"]}%
 Category results:
 {simulation["updated_category_totals"]}
 
-Write a short explanation with:
+Goal Estimates:
+{estimated_goal_costs}
 
-Strategy Impact
-Where Savings Come From
-Practical Advice
+Goal Funding Plan:
+{goal_funding_plan}
 
-Keep the response concise and realistic.
+Recommended Category Reductions:
+{recommended_category_reductions}
+
+Suggested Habit Challenges:
+{habit_challenges}
+
+Write a concise markdown response with exactly these sections:
+
+### Goal Plan
+### Category Reductions
+### Challenges This Week
+### If You Miss A Week
+
+Use bullet points and practical actions.
+Keep it realistic and motivational.
 Do not invent numbers.
 """
 
