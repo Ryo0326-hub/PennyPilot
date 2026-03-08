@@ -229,7 +229,6 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
   const [estimatedGoalCosts, setEstimatedGoalCosts] = useState<EstimatedGoalCost[]>([]);
   const [goalFundingPlan, setGoalFundingPlan] = useState<GoalFundingPlan | null>(null);
   const [recommendedCuts, setRecommendedCuts] = useState<CategoryReductionRecommendation[]>([]);
-  const [habitChallenges, setHabitChallenges] = useState<string[]>([]);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -267,7 +266,6 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
       setEstimatedGoalCosts([]);
       setGoalFundingPlan(null);
       setRecommendedCuts([]);
-      setHabitChallenges([]);
 
       const normalizedGoals = goals
         .filter((goal) => goal.name?.trim())
@@ -290,7 +288,6 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
       setEstimatedGoalCosts(response.data.estimated_goal_costs);
       setGoalFundingPlan(response.data.goal_funding_plan);
       setRecommendedCuts(response.data.recommended_category_reductions);
-      setHabitChallenges(response.data.habit_challenges);
       setAiExplanation(response.data.ai_explanation);
     } catch (err) {
       console.error("Simulation failed:", err);
@@ -299,7 +296,6 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
       setEstimatedGoalCosts([]);
       setGoalFundingPlan(null);
       setRecommendedCuts([]);
-      setHabitChallenges([]);
       setAiExplanation(null);
     } finally {
       setLoading(false);
@@ -488,22 +484,6 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
             </div>
           )}
 
-          {habitChallenges.length > 0 && (
-            <div className="rounded-2xl border border-cyan-300/20 bg-cyan-500/5 p-5 shadow-sm">
-              <h4 className="text-base font-semibold text-cyan-100">Challenges This Week</h4>
-              <ul className="mt-4 space-y-2">
-                {habitChallenges.map((challenge, index) => (
-                  <li
-                    key={`${index}-${challenge}`}
-                    className="rounded-xl border border-white/15 px-4 py-3 text-sm text-slate-200"
-                  >
-                    {challenge}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-2xl border border-slate-300/20 bg-white/[0.03] p-5 shadow-sm transition-colors hover:bg-white/[0.07]">
               <p className="text-sm text-slate-300">Original Spending</p>
@@ -531,40 +511,6 @@ export default function StrategySimulator({ statementId, categoryTotals }: Props
               <p className="mt-3 text-2xl font-bold text-emerald-200">
                 {formatCurrency(simulation.annual_savings)}
               </p>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-white/15 bg-white/[0.03] p-5 shadow-sm">
-            <h4 className="text-base font-semibold text-white">Projected Category Totals</h4>
-
-            <div className="mt-4 space-y-3">
-              {simulation.updated_category_totals.map((item) => {
-                const savings = item.original_total - item.projected_total;
-
-                return (
-                  <div
-                    key={item.category}
-                    className="flex items-center justify-between rounded-2xl border border-white/15 px-4 py-4 transition-colors hover:bg-white/[0.08]"
-                  >
-                    <div className="space-y-1">
-                      <p className="capitalize font-medium text-slate-100">{item.category}</p>
-                      <p className="text-sm text-slate-300">
-                        {formatCurrency(item.original_total)} →{" "}
-                        {formatCurrency(item.projected_total)}
-                      </p>
-                    </div>
-
-                    <div className="text-right">
-                      <p className="text-xs uppercase tracking-wide text-slate-400">
-                        Savings
-                      </p>
-                      <p className="font-semibold text-emerald-300">
-                        {formatCurrency(savings)}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
             </div>
           </div>
 
