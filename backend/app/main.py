@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-from app.db.database import Base, engine
+from app.db.database import Base, engine, ensure_owner_column
 from app.db import models
 from app.routes.health import router as health_router
 from app.routes.upload import router as upload_router
@@ -20,12 +20,13 @@ allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") i
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Test-User-Id"],
 )
 
 Base.metadata.create_all(bind=engine)
+ensure_owner_column()
 
 app.include_router(health_router)
 app.include_router(upload_router)

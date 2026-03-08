@@ -9,3 +9,4 @@ pdfplumber
 pypdf
 psycopg2-binary
 pytest
+python-jose[cryptography]

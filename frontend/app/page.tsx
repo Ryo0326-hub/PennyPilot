@@ -1,19 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import UploadStatementForm from "../components/UploadStatementForm";
 import TransactionTable from "../components/TransactionTable";
 import SummaryCards from "../components/SummaryCards";
 import CategoryBarChart from "../components/CategoryBarChart";
 import CategoryPieChart from "../components/CategoryPieChart";
 import AIInsightsCard from "../components/AIInsightsCard";
-import { api } from "../lib/api";
+import { api, setAuthTokenProvider, setAuthUserIdProvider } from "../lib/api";
 import {
   ParseResponse,
   StatementSummary,
   InsightsResponse,
 } from "../types/transaction";
 import StrategySimulator from "../components/StrategySimulator";
+
+type Auth0User = {
+  sub?: string;
+  email?: string;
+  name?: string;
+};
 
 type SectionHeadingProps = {
   title: string;
@@ -38,12 +44,58 @@ function SectionHeading({ title, subtitle, badge }: SectionHeadingProps) {
 }
 
 export default function Home() {
+  const [authLoading, setAuthLoading] = useState(true);
+  const [user, setUser] = useState<Auth0User | null>(null);
   const [parsedData, setParsedData] = useState<ParseResponse | null>(null);
   const [summary, setSummary] = useState<StatementSummary | null>(null);
   const [insights, setInsights] = useState<string | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
 
+  useEffect(() => {
+    const resolveUser = async () => {
+      try {
+        const response = await fetch("/auth/profile", { credentials: "include" });
+        if (!response.ok) {
+          setUser(null);
+          return;
+        }
+        const profile = (await response.json()) as Auth0User;
+        setUser(profile);
+      } catch {
+        setUser(null);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    resolveUser();
+
+    setAuthTokenProvider(async () => {
+      try {
+        const response = await fetch("/auth/access-token", { credentials: "include" });
+        if (!response.ok) {
+          return null;
+        }
+        const payload = (await response.json()) as { token?: string; accessToken?: string };
+        return payload.token ?? payload.accessToken ?? null;
+      } catch {
+        return null;
+      }
+    });
+    setAuthUserIdProvider(() => user?.sub ?? null);
+    return () => {
+      setAuthTokenProvider(null);
+      setAuthUserIdProvider(null);
+    };
+  }, [user?.sub]);
+
   const handleParsed = async (data: ParseResponse) => {
+    if (!user) {
+      setSummary(null);
+      setInsights("Please sign in to view statement data.");
+      return;
+    }
+
     setParsedData(data);
     setInsights(null);
 
@@ -54,6 +106,12 @@ export default function Home() {
       setSummary(summaryResponse.data);
     } catch (error) {
       console.error("Failed to fetch summary:", error);
+      if (typeof error === "object" && error !== null && "response" in error) {
+        const status = (error as { response?: { status?: number } }).response?.status;
+        if (status === 401 || status === 403) {
+          setInsights("Your session expired. Please sign in again.");
+        }
+      }
       setSummary(null);
     }
 
@@ -65,11 +123,28 @@ export default function Home() {
       setInsights(insightsResponse.data.insights);
     } catch (error) {
       console.error("Failed to fetch insights:", error);
-      setInsights("Failed to generate AI insights.");
+      if (typeof error === "object" && error !== null && "response" in error) {
+        const status = (error as { response?: { status?: number } }).response?.status;
+        if (status === 401 || status === 403) {
+          setInsights("Your session expired. Please sign in again.");
+        } else {
+          setInsights("Failed to generate AI insights.");
+        }
+      } else {
+        setInsights("Failed to generate AI insights.");
+      }
     } finally {
       setLoadingInsights(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <main className="min-h-screen px-3 py-6 text-slate-200 sm:px-6 sm:py-8 lg:px-8">
+        Loading...
+      </main>
+    );
+  }
 
   return (
     <main className="relative min-h-screen overflow-hidden px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -81,26 +156,71 @@ export default function Home() {
 
       <div className="relative mx-auto max-w-7xl space-y-6 sm:space-y-8">
         <header className="rounded-3xl border border-white/15 bg-gradient-to-br from-slate-900/95 via-slate-900/85 to-cyan-950/80 p-5 shadow-[0_20px_70px_rgba(7,12,26,0.45)] sm:p-8">
-          <div className="max-w-3xl space-y-3">
-            <span className="inline-flex rounded-full border border-cyan-300/35 bg-cyan-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-cyan-200 sm:text-xs sm:tracking-[0.2em]">
-              Money Coach, Powered by AI
-            </span>
-            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-4xl">
-              PennyPilot
-            </h1>
-            <p className="text-sm leading-7 text-slate-200 sm:text-base">
-              Drop your bank statement and see where your money goes and how to save more
-            </p>
-            <p className="text-xs font-medium tracking-wide text-emerald-300 sm:text-sm">
-              Upload your bank statement pdf. We sort your spending, show simple charts, and give
-              easy tips you can actually use.
-            </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="max-w-3xl space-y-3">
+              <span className="inline-flex rounded-full border border-cyan-300/35 bg-cyan-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-cyan-200 sm:text-xs sm:tracking-[0.2em]">
+                Money Coach, Powered by AI
+              </span>
+              <h1 className="text-2xl font-bold tracking-tight text-white sm:text-4xl">
+                PennyPilot
+              </h1>
+              <p className="text-sm leading-7 text-slate-200 sm:text-base">
+                Drop your bank statement and see where your money goes and how to save more
+              </p>
+              <p className="text-xs font-medium tracking-wide text-emerald-300 sm:text-sm">
+                Upload your bank statement pdf. We sort your spending, show simple charts, and give
+                easy tips you can actually use.
+              </p>
+            </div>
+
+            {user ? (
+              <div className="space-y-2 text-sm">
+                <p className="text-slate-200">Signed in as {user.email ?? user.name ?? "user"}</p>
+                <a
+                  href="/auth/logout"
+                  className="inline-flex rounded-lg border border-white/20 px-3 py-2 text-cyan-100 hover:bg-white/10"
+                >
+                  Log out
+                </a>
+              </div>
+            ) : (
+              <div className="space-y-2 text-sm">
+                <a
+                  href="/auth/login?screen_hint=signup"
+                  className="inline-flex rounded-lg border border-white/20 px-3 py-2 text-cyan-100 hover:bg-white/10"
+                >
+                  Signup
+                </a>
+                <a
+                  href="/auth/login"
+                  className="ml-2 inline-flex rounded-lg bg-cyan-300 px-3 py-2 font-semibold text-slate-900 hover:brightness-105"
+                >
+                  Login
+                </a>
+              </div>
+            )}
           </div>
         </header>
 
-        <div className="rounded-3xl border border-white/10 bg-slate-900/70 p-1 shadow-xl backdrop-blur">
-          <UploadStatementForm onParsed={handleParsed} />
-        </div>
+        {user ? (
+          <div className="rounded-3xl border border-white/10 bg-slate-900/70 p-1 shadow-xl backdrop-blur">
+            <UploadStatementForm onParsed={handleParsed} />
+          </div>
+        ) : (
+          <div className="rounded-3xl border border-white/10 bg-slate-900/70 p-6 text-center shadow-xl backdrop-blur">
+            <p className="text-sm text-slate-200">
+              Sign in to upload statements and view private financial insights.
+            </p>
+            <div className="mt-4">
+              <a
+                href="/auth/login"
+                className="rounded-xl bg-cyan-300 px-4 py-2 text-sm font-semibold text-slate-900 hover:brightness-105"
+              >
+                Sign In
+              </a>
+            </div>
+          </div>
+        )}
 
         {parsedData && (
           <section className="space-y-4">

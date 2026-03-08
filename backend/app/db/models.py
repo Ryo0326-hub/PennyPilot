@@ -9,6 +9,7 @@ class Statement(Base):
     __tablename__ = "statements"
 
     id = Column(Integer, primary_key=True, index=True)
+    owner_id = Column(String, nullable=False, default="legacy-local-user", index=True)
     filename = Column(String, nullable=False)
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
 

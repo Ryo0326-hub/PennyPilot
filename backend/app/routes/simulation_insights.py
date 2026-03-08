@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import os
 from datetime import date
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
+from app.auth.dependencies import get_current_user_id
 from app.db.database import get_db
-from app.db.models import Statement
+from app.routes._helpers import get_user_statement_or_404
 from app.services.summary import build_statement_summary
 from app.services.personalized_plan import build_personalized_plan
 from app.services.simulation_insights import generate_simulation_insight
@@ -35,20 +37,20 @@ class StrategyRequest(BaseModel):
 
 class GoalInput(BaseModel):
     name: str = Field(min_length=1, max_length=120)
-    description: str | None = Field(default=None, max_length=300)
-    target_amount: float | None = Field(default=None, gt=0)
-    target_date: date | None = None
+    description: Optional[str] = Field(default=None, max_length=300)
+    target_amount: Optional[float] = Field(default=None, gt=0)
+    target_date: Optional[date] = None
 
     @field_validator("target_date")
     @classmethod
-    def validate_target_date(cls, value: date | None) -> date | None:
+    def validate_target_date(cls, value: Optional[date]) -> Optional[date]:
         if value and value <= date.today():
             raise ValueError("target_date must be in the future")
         return value
 
 
 class PersonalPlanRequest(BaseModel):
-    strategy: StrategyRequest | None = None
+    strategy: Optional[StrategyRequest] = None
     goals: list[GoalInput] = Field(default_factory=list)
 
     @field_validator("goals")
@@ -64,12 +66,9 @@ def get_simulation_insights(
     statement_id: int,
     payload: PersonalPlanRequest,
     db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id),
 ):
-
-    statement = db.query(Statement).filter(Statement.id == statement_id).first()
-
-    if not statement:
-        raise HTTPException(status_code=404, detail="Statement not found")
+    statement = get_user_statement_or_404(db, statement_id, user_id)
 
     summary = build_statement_summary(statement)
 
