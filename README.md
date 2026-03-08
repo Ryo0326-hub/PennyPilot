@@ -1,66 +1,80 @@
 # PennyPilot
 
-PennyPilot is an AI-powered financial agent that helps you understand your spending and improve your financial habits.
+PennyPilot is an AI-powered personal finance copilot that turns bank statements into actionable guidance.
 
-Upload your bank statement and PennyPilot will:
+It helps users:
 
-- parse your transactions,
-- categorize your spending,
-- show clear charts and summaries,
-- suggest ways to reduce unnecessary expenses,
-- simulate savings strategies so you can test "what if" scenarios.
+- understand where money goes,
+- get AI insights on spending behavior,
+- set personalized savings goals,
+- run category-level strategy simulations,
+- and receive practical coaching to improve financial habits.
 
-The goal is simple: make personal finance insights easy for everyone to understand.
+## What we built
 
-## Why this project exists
+### 1) Statement intelligence pipeline
 
-Most bank statements are hard to read and act on.  
-PennyPilot turns raw statement data into plain, practical guidance.
+- Upload and parse statement files (`.pdf` and `.csv`)
+- Normalize transactions into a structured schema
+- Auto-categorize spending by category and merchant
+- Generate summary metrics and visual charts
 
-## Main features
+### 2) AI CFO insights
 
-- Statement upload (`.pdf`)
-- Automatic transaction parsing and categorization
-- Spending summary cards and category charts
-- AI-generated spending insights
-- Strategy simulator for restaurants, subscriptions, and shopping cuts
-- AI explanation of your simulated strategy results
+- Gemini-generated spending analysis
+- Spending Overview with top-category concentration in sentence form
+- Key Patterns and Suggestions with merchant ranking included
+
+### 3) Personalized strategy simulator
+
+- Add multiple personal goals (example: camera lens, vacation)
+- Enter goal amount manually, or let AI estimate goal cost
+- Optional target date (default planning horizon if omitted)
+- Dynamic category reductions across all available categories
+- Monthly and annual savings projections
+- AI strategy analysis with coaching guidance
+
+### 4) Database privacy and security hardening
+
+- Auth-protected API access with user identity extraction
+- Statement ownership model (`owner_id`) and owner-scoped reads
+- IDOR prevention by checking `statement_id + owner_id`
+- Upload hardening:
+  - file size limit,
+  - extension/content-type validation,
+  - generic error responses for safer exposure
+- CORS tightened for safer defaults
+- Access-control tests for owner/non-owner behavior
 
 ## Tech stack
 
 ### Frontend
-- Next.js
+
+- Next.js (App Router)
 - React + TypeScript
 - Tailwind CSS
 - Recharts
+- Auth0 Next.js SDK (`@auth0/nextjs-auth0`)
 
 ### Backend
+
 - FastAPI
 - SQLAlchemy
-- SQLite (or any SQLAlchemy-compatible database URL)
-- Google Gemini API (`google-genai`)
-- pandas + pdfplumber/pypdf for statement parsing
+- SQLite or Postgres via `DATABASE_URL`
+- Gemini (`google-genai`)
+- `pandas`, `pdfplumber`, `pypdf` for parsing
 
 ## Project structure
 
 ```text
 ai-cfo/
-  backend/    # FastAPI API, parsing, categorization, summaries, AI services
-  frontend/   # Next.js user interface
+  backend/    # API routes, parsing, categorization, simulation, auth, db models
+  frontend/   # Next.js UI, charts, simulator, auth-aware client
 ```
-
-## How it works
-
-1. You upload a statement file.
-2. The backend parses transactions and stores them in the database.
-3. Transactions are categorized (for example: restaurants, shopping, subscriptions).
-4. The app calculates totals, merchant stats, and category breakdowns.
-5. Gemini generates readable insights and suggestions.
-6. You can run a strategy simulation to estimate monthly and annual savings.
 
 ## Quick start
 
-### 1) Clone the repo
+### 1) Clone
 
 ```bash
 git clone https://github.com/Ryo0326-hub/PennyPilot.git
@@ -75,18 +89,6 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-```
-
-Edit `backend/.env`:
-
-```env
-GEMINI_API_KEY=your_real_api_key
-DATABASE_URL=sqlite:///./app.db
-```
-
-Run backend server:
-
-```bash
 uvicorn app.main:app --reload
 ```
 
@@ -94,43 +96,79 @@ Backend runs at `http://127.0.0.1:8000`.
 
 ### 3) Frontend setup
 
-In a new terminal:
-
 ```bash
 cd frontend
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
 Frontend runs at `http://localhost:3000`.
 
-## API endpoints (core)
+## Required environment variables
 
-- `GET /health` - health check
-- `POST /upload/statement` - upload and parse statement file
-- `GET /statements/{statement_id}` - list parsed transactions for a statement
-- `GET /summary/{statement_id}` - spending summary
-- `GET /insights/{statement_id}` - AI-generated spending insights
-- `POST /simulate/{statement_id}` - run savings simulation
-- `POST /simulation-insights/{statement_id}` - simulation + AI explanation
+### Frontend (`frontend/.env.local`)
 
-## Environment variables
+- `APP_BASE_URL` (example: `http://localhost:3000`)
+- `AUTH0_DOMAIN`
+- `AUTH0_CLIENT_ID`
+- `AUTH0_CLIENT_SECRET`
+- `AUTH0_SECRET`
+- `NEXT_PUBLIC_API_BASE_URL` (example: `http://127.0.0.1:8000`)
+- `AUTH0_AUDIENCE` (optional)
 
-Backend (`backend/.env`):
+### Backend (`backend/.env`)
 
-- `GEMINI_API_KEY` - required for AI insights
-- `DATABASE_URL` - required database connection string
+- `DATABASE_URL`
+- `GEMINI_API_KEY`
+- `ALLOWED_ORIGINS`
+- `AUTH_REQUIRED` (`true`/`false`)
+- `AUTH_ISSUER` (Auth0 issuer URL)
+- `AUTH_JWKS_URL`
+- `AUTH_AUDIENCE` (optional)
+- `MAX_UPLOAD_BYTES`
+- `ALLOW_TEST_AUTH_HEADER` (development helper)
+- `ENVIRONMENT` (`development` or `production`)
 
-## Security note
+## Core API endpoints
 
-- Never commit real `.env` files or API keys.
-- Commit only `.env.example` with placeholder values.
-- If a key is accidentally exposed, rotate/revoke it immediately.
+- `GET /health`
+- `POST /upload/statement`
+- `POST /upload/csv`
+- `GET /statements/{statement_id}`
+- `GET /summary/{statement_id}`
+- `GET /insights/{statement_id}`
+- `POST /simulate/{statement_id}`
+- `POST /simulation-insights/{statement_id}`
+
+## Security notes
+
+- Never commit real secrets (`.env`, Auth0 secrets, API keys).
+- Use `.env.example` as template only.
+- Rotate keys immediately if exposed.
+- Keep `ALLOW_TEST_AUTH_HEADER=false` and strict auth in production.
+
+## Testing
+
+Backend tests:
+
+```bash
+cd backend
+python3 -m pytest -q
+```
+
+Frontend lint:
+
+```bash
+cd frontend
+npm run lint
+```
 
 ## Current status
 
-PennyPilot is in active development and focused on:
+PennyPilot currently supports:
 
-- better statement compatibility across banks,
-- more robust categorization,
-- smarter, more actionable AI recommendations.
+- authenticated, owner-scoped statement privacy,
+- AI-driven insights,
+- personalized goal-based financial planning,
+- and dynamic multi-category strategy simulation.
