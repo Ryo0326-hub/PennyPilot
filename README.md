@@ -2,7 +2,7 @@
 
 PennyPilot is an AI-powered financial agent that helps you understand your spending and improve your financial habits.
 
-Upload your bank statement (PDF or CSV), and PennyPilot will:
+Upload your bank statement and PennyPilot will:
 
 - parse your transactions,
 - categorize your spending,
@@ -19,7 +19,7 @@ PennyPilot turns raw statement data into plain, practical guidance.
 
 ## Main features
 
-- Statement upload (`.pdf` or `.csv`)
+- Statement upload (`.pdf`)
 - Automatic transaction parsing and categorization
 - Spending summary cards and category charts
 - AI-generated spending insights
